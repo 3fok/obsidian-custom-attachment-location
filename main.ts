@@ -10,7 +10,7 @@ interface CustomAttachmentLocationSettings {
 }
 
 const DEFAULT_SETTINGS: CustomAttachmentLocationSettings = {
-    attachmentFolderPath: './assets/${filename}',
+    attachmentFolderPath: 'assets/${filepath}/${filename}',
     pastedImageFileName: 'image-${date}',
     dateTimeFormat: 'YYYYMMDDHHmmssSSS',
     autoRenameFolder: true,
@@ -97,8 +97,16 @@ export default class CustomAttachmentLocation extends Plugin {
         this.app.vault.setConfig('attachmentFolderPath', path);
     }
 
-    getAttachmentFolderPath(mdFileName: string) {
+    getAttachmentFolderPath(mdFolderPath: string, mdFileName: string) {
+        if (mdFolderPath == '.') {
+            let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
+                filename: mdFileName
+            });
+            return path;
+        }
+
         let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
+            filepath: mdFolderPath,
             filename: mdFileName
         });
         return path;
@@ -108,9 +116,9 @@ export default class CustomAttachmentLocation extends Plugin {
         let attachmentFolder = '';
 
         if (this.useRelativePath)
-            attachmentFolder = Path.join(mdFolderPath, this.getAttachmentFolderPath(mdFileName));
+            attachmentFolder = Path.join(mdFolderPath, this.getAttachmentFolderPath(mdFolderPath, mdFileName));
         else {
-            attachmentFolder = this.getAttachmentFolderPath(mdFileName);
+            attachmentFolder = this.getAttachmentFolderPath(mdFolderPath, mdFileName);
         }
         return normalizePath(attachmentFolder);
     }
@@ -128,15 +136,15 @@ export default class CustomAttachmentLocation extends Plugin {
     async handlePaste(event: ClipboardEvent, editor: Editor, view: MarkdownView) {
         console.log('Handle Paste');
 
-        let mdFileName = view.file.basename;
-        let mdFolderPath: string = Path.dirname(view.file.path);
+        let mdFileName = view.file ? view.file.basename : '';
+        let mdFolderPath: string = view.file ? Path.dirname(view.file.path) : '';
 
-        let path = this.getAttachmentFolderPath(mdFileName);
+        let path = this.getAttachmentFolderPath(mdFolderPath, mdFileName);
         let fullPath = this.getAttachmentFolderFullPath(mdFolderPath, mdFileName);
 
         /* 
         sample
-        this.app.vault.setConfig('attachmentFolderPath', `./assets/${filename}`);
+        this.app.vault.setConfig('attachmentFolderPath', `./assets/${filepath}/${filename}`);
         */
         this.updateAttachmentFolderConfig(path);
 
@@ -178,7 +186,7 @@ export default class CustomAttachmentLocation extends Plugin {
 
                 //@ts-ignore
                 let imageFile = await this.app.saveAttachment(name, extension, img);
-                let markdownLink = await this.app.fileManager.generateMarkdownLink(imageFile, view.file.path);
+                let markdownLink = view.file ? await this.app.fileManager.generateMarkdownLink(imageFile, view.file.path) : '';
                 markdownLink += '\n\n';
                 editor.replaceSelection(markdownLink);
             }
@@ -188,10 +196,10 @@ export default class CustomAttachmentLocation extends Plugin {
     async handleDrop(event: DragEvent, editor: Editor, view: MarkdownView) {
         console.log('Handle Drop');
 
-        let mdFileName = view.file.basename;
-        let mdFolderPath: string = Path.dirname(view.file.path);
+        let mdFileName = view.file ? view.file.basename : '';
+        let mdFolderPath: string = view.file ? Path.dirname(view.file.path) : '';
 
-        let path = this.getAttachmentFolderPath(mdFileName);
+        let path = this.getAttachmentFolderPath(mdFolderPath, mdFileName);
         let fullPath = this.getAttachmentFolderFullPath(mdFolderPath, mdFileName);
 
         if (!this.useRelativePath && !await this.adapter.exists(fullPath))
@@ -212,8 +220,9 @@ export default class CustomAttachmentLocation extends Plugin {
             return;
 
         let mdFileName = file.basename;
+        let mdFolderPath: string = Path.dirname(file.path);
 
-        let path = this.getAttachmentFolderPath(mdFileName);
+        let path = this.getAttachmentFolderPath(mdFolderPath, mdFileName);
 
         this.updateAttachmentFolderConfig(path);
     }
@@ -226,18 +235,18 @@ export default class CustomAttachmentLocation extends Plugin {
 
         let newName = newFile.basename;
 
-        this.updateAttachmentFolderConfig(this.getAttachmentFolderPath(newName));
-
-        if (!this.settings.autoRenameFolder) {
-            return;
-        }
-
         let oldName = Path.basename(oldFilePath, '.md');
 
         let mdFolderPath: string = Path.dirname(newFile.path);
         let oldMdFolderPath: string = Path.dirname(oldFilePath);
         let oldAttachmentFolderPath: string = this.getAttachmentFolderFullPath(oldMdFolderPath, oldName);
         let newAttachmentFolderPath: string = this.getAttachmentFolderFullPath(mdFolderPath, newName);
+
+        this.updateAttachmentFolderConfig(this.getAttachmentFolderPath(mdFolderPath, newName));
+
+        if (!this.settings.autoRenameFolder) {
+            return;
+        }
 
         //check if old attachment folder exists and is necessary to rename Folder
         if (await this.adapter.exists(oldAttachmentFolderPath) && (oldAttachmentFolderPath !== newAttachmentFolderPath)) {
@@ -315,9 +324,9 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
 
         let el = new Setting(containerEl)
             .setName('Location for New Attachments')
-            .setDesc('Start with "./" to use relative path. Available variables: ${filename}.(NOTE: DO NOT start with "/" or end with "/". )')
+            .setDesc('Start with "./" to use relative path. Available variables: ${filename}, ${filepath}.(NOTE: DO NOT start with "/" or end with "/". )')
             .addText(text => text
-                .setPlaceholder('./assets/${filename}')
+                .setPlaceholder('./assets/${filepath}/${filename}')
                 .setValue(this.plugin.settings.attachmentFolderPath)
                 .onChange(async (value: string) => {
                     console.log('attachmentFolder: ' + value);

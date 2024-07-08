@@ -22,7 +22,7 @@ Customize attachment location with variables($filename, $data, etc) like typora.
 
 ### Manual Install
 
-* Download `main.js`, `manifest.json` in the [latest release](https://github.com/RainCat1998/obsidian-custom-attachment-location-plugin/releases/latest).
+* Download `main.js`, `manifest.json` in the [latest release](https://github.com/3fok/obsidian-custom-attachment-location-plugin/releases/latest).
 * Copy `main.js`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/obsidian-custom-attachment-location/`.
 * Enable plugin in Obsidian setting.
 
@@ -30,9 +30,10 @@ Customize attachment location with variables($filename, $data, etc) like typora.
 
 * **Location for New Attachments**
   * Same to "Files & Links -> Default location for new attachments".
+  * `${filepath}` representing for current note filepath.
   * `${filename}` representing for current note filename.
   * **Put "./" at the beginning of the path if you want to use relative path.**
-  * example: **`assets/${filename}`, `./assets/${filename}`**
+  * example: **`assets/${filepath}/${filename}`, `./assets/${filename}`**
   * **DO NOT start with "/" or end with "/"**
   * (Wrong example: `/assets/${filename}/`)
 
