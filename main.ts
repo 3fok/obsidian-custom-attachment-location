@@ -1,4 +1,5 @@
 import { App, Editor, MarkdownView, Plugin, PluginSettingTab, Setting, moment, normalizePath, TAbstractFile, FileSystemAdapter, ListedFiles, TFile } from 'obsidian';
+
 import * as Path from 'path';
 
 interface CustomAttachmentLocationSettings {
@@ -99,16 +100,14 @@ export default class CustomAttachmentLocation extends Plugin {
 
     getAttachmentFolderPath(mdFolderPath: string, mdFileName: string) {
         if (mdFolderPath == '.') {
-            let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
-                filename: mdFileName
-            });
-            return path;
+            mdFolderPath = '';
         }
 
         let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
             filepath: mdFolderPath,
             filename: mdFileName
         });
+        path = Path.normalize(path);
         return path;
     }
 
